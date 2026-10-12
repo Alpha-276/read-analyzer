@@ -28,7 +28,7 @@ Developed by team **Alpha-276 (Team Alpha)** as part of a 10-week development cy
 * **Product Owner:** Artsiom Beniash
 * **Scrum Master:** yevhenii medushivskyi
 * **Frontend Lead:** Sergei Boiko
-* **Backend Engineer:** *TBD*
+* **Backend Engineer:** Alina Kuznetsova
 * **ML / Data Engineer:** *TBD*
 
 Sprint management and task tracking are hosted on [Jira: Read Analyzer Board](https://uvb.atlassian.net/jira/software/projects/RA/boards/2).
