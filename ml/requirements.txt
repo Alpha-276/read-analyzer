@@ -1,0 +1,10 @@
+openai-whisper>=20231117
+torch>=2.2.0
+torchaudio>=2.2.0
+librosa>=0.10.2
+soundfile>=0.12.1
+noisereduce>=3.0.0
+numpy>=1.26.0
+pandas>=2.2.0
+jiwer>=3.0.4
+tqdm>=4.66.0
