@@ -3,11 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="Read Analyzer API",
-    description="API для анализа голосовых сообщений школьников и детекции дефектов речи",
+    description="API for analyzing student voice recordings and identifying speech development anomalies",
     version="0.1.0",
 )
 
-# Разрешаем запросы с любого источника для удобства локальной разработки
+# Allow cross-origin requests for local development
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

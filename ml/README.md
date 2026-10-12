@@ -1,17 +1,17 @@
 # Machine Learning & Audio Processing (Read Analyzer)
 
-Модуль предобработки звука, ASR (распознавание речи) и алгоритмов детекции речевых нарушений.
+Audio preprocessing, Automatic Speech Recognition (ASR), and speech development anomaly detection.
 
-## Задачи Спринта 1
-* [RA-5](https://uvb.atlassian.net/browse/RA-5): Аудит датасета 500 детей.
-* [RA-6](https://uvb.atlassian.net/browse/RA-6): Бенчмарк Whisper (tiny/base/small) на детской речи.
+## Sprint 1 Goals
+* [RA-5](https://uvb.atlassian.net/browse/RA-5): 500-child audio dataset format exploration & validation.
+* [RA-6](https://uvb.atlassian.net/browse/RA-6): Whisper (tiny/base/small) benchmark on children's speech.
 
-## Работа с датасетом (ВАЖНО!)
-* ⚠️ **Запрещено пушить аудиофайлы датасета в Git-репозиторий.**
-* Датасет хранится локально в `data/` (добавлено в `.gitignore`) или на сервере/суперкомпьютере.
-* Для тестов пайплайна используйте короткие сэмплы (< 5 сек) в папке `ml/samples/`.
+## Dataset Management (CRITICAL)
+* ⚠️ **Do not push raw dataset audio files to GitHub.**
+* Store the primary dataset locally in `data/` (ignored by git) or on the supercomputer cluster.
+* Use short (< 5s) test clips in `ml/samples/` for unit tests and CI.
 
-## Установка зависимостей
+## Installation
 ```bash
 pip install -r requirements.txt
 ```
