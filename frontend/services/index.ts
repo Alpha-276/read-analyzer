@@ -1,4 +1,7 @@
 export { initializeDatabase } from './database';
+export { startRecording, stopRecording } from './recordingService';
+export { RECORDING_SAMPLE_RATES, RecordingError } from './types';
+
 export {
   createClass,
   listClasses,
@@ -11,4 +14,11 @@ export type {
   Student,
   AddStudentInput,
   UpdateStudentInput,
+} from './types';
+
+export type {
+  RecordingSettings,
+  RecordingStudent,
+  RecordingSampleRate,
+  RecordingErrorCode,
 } from './types';
