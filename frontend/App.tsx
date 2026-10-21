@@ -10,7 +10,7 @@ import AnalysisScreen from "./screens/AnalysisScreen";
 import BottomNavigation from "./components/BottomNavigation";
 import type { WavRecording } from "./services";
 
-import { initializeDatabase, cleanupAbandonedRecordings } from "./services";
+import { initializeDatabase, cleanupAbandonedRecordings, getLatestSavedRecording, resumeRecordingProcessing } from "./services";
 
 
 export default function App() {
@@ -18,6 +18,7 @@ export default function App() {
         useState("home");
 
     const [lastRecording, setLastRecording] = useState<WavRecording | null>(null);
+    const [resumingTaskUri, setResumingTaskUri] = useState<string | null>(null);
 
     useEffect(() => {
         try {
@@ -27,9 +28,24 @@ export default function App() {
             console.error("Failed to clean temporary WAV files:", error);
         }
         initializeDatabase()
-            .then(() =>
-                console.log("Database initialized")
-            )
+            .then(async () => {
+                const previous = await getLatestSavedRecording();
+                setLastRecording(current => current ?? previous);
+                // A saved server task may have finished while the app was closed.
+                // Only poll the known task; NEVER re-upload WAV automatically.
+                if (previous?.taskId && previous.processingStatus !== 'done') {
+                    setResumingTaskUri(previous.uri);
+                    void resumeRecordingProcessing(previous, updated => {
+                        setLastRecording(current =>
+                            current?.uri === updated.uri ? updated : current
+                        );
+                    })
+                        .catch(error => console.warn('Failed to resume ASR task:', error))
+                        .finally(() => setResumingTaskUri(current =>
+                            current === previous.uri ? null : current
+                        ));
+                }
+            })
             .catch(console.error);
     }, []);
 
@@ -52,11 +68,12 @@ export default function App() {
                 return (
                     <RecordingsScreen
                         recording={lastRecording}
-                        onConfirmed={uri => {
-                            setLastRecording(previous => previous?.status === "pending"
-                                ? { ...previous, uri, status: "saved" }
-                                : previous);
-                        }}
+                        resuming={resumingTaskUri === lastRecording?.uri}
+                        onRecordingChange={next => setLastRecording(previous =>
+                            previous?.uri === lastRecording?.uri || previous?.uri === next.uri
+                                ? next
+                                : previous
+                        )}
                     />
                 );
 

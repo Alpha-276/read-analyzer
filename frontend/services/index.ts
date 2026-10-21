@@ -34,3 +34,8 @@ export type {
   WavRecording,
 } from './types';
 
+
+// RA-13: local saving, remote transcription and persisted processing state.
+export { saveRecording, saveAndProcess, resumeRecordingProcessing } from './processingService';
+export { getLatestSavedRecording, getSavedRecording, listSavedRecordings } from './recordingRepository';
+export type { ProcessingStatus } from './types';

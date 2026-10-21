@@ -74,7 +74,30 @@ async function openAndInitializeDatabase(): Promise<SQLiteDatabase> {
         await db.execAsync('PRAGMA user_version = 1');
       }
 
-      // RA-14: append the next migration here; preserve existing rows and IDs.
+      // RA-13: recording metadata stays on the phone, without touching RA-7 rows.
+      if ((version?.user_version ?? 0) < 2) {
+        await db.execAsync(`
+          CREATE TABLE IF NOT EXISTS recordings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            student_first_name TEXT NOT NULL,
+            student_last_name TEXT NOT NULL,
+            text_id TEXT NOT NULL,
+            uri TEXT NOT NULL UNIQUE,
+            duration_seconds INTEGER NOT NULL,
+            processing_status TEXT NOT NULL DEFAULT 'unprocessed'
+              CHECK (processing_status IN ('unprocessed', 'pending', 'processing', 'done', 'error')),
+            task_id TEXT,
+            transcript TEXT,
+            comparison_json TEXT,
+            error TEXT,
+            saved_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE INDEX IF NOT EXISTS idx_recordings_student_id ON recordings(student_id);
+          PRAGMA user_version = 2;
+        `);
+      }
+      // RA-14 can extend the persisted transcription/analysis metadata later.
     });
 
     return db;
