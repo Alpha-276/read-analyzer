@@ -1,0 +1,34 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      RA_API_TOKEN: ${RA_API_TOKEN:?Set RA_API_TOKEN in .env}
+      RA_DATA_DIR: /var/lib/read-analyzer
+      READ_ANALYZER_ASR_MODEL: ${READ_ANALYZER_ASR_MODEL:-infinitejoy/wav2vec2-large-xls-r-300m-slovak}
+    volumes:
+      - read_analyzer_data:/var/lib/read-analyzer
+      - huggingface_cache:/root/.cache/huggingface
+    expose:
+      - '8000'
+  https:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      RA_PUBLIC_DOMAIN: ${RA_PUBLIC_DOMAIN:?Set RA_PUBLIC_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+volumes:
+  read_analyzer_data:
+  huggingface_cache:
+  caddy_data:
+  caddy_config:

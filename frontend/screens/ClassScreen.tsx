@@ -1,3 +1,4 @@
+import SyncControls from "../components/SyncControls";
 import {
     View,
     Text,
@@ -11,6 +12,9 @@ import { useEffect, useState } from "react";
 
 import {
     listStudents,
+    listClasses,
+    createClass as createClassInDb,
+    type SchoolClass,
     addStudent as addStudentToDb,
     updateStudent as updateStudentInDb,
     deleteStudent as deleteStudentFromDb,
@@ -18,17 +22,24 @@ import {
 } from "../services";
 
 export default function ClassScreen() {
+    const [classes, setClasses] = useState<SchoolClass[]>([]);
+    const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+    const [newClassName, setNewClassName] = useState("");
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
 
     useEffect(() => {
-        loadStudents();
-    }, []);
+        void loadStudents();
+    }, [selectedClassId]);
 
     const loadStudents = async () => {
         try {
-            const data = await listStudents(1);
-            setStudents(data);
+            const all = await listClasses();
+            setClasses(all);
+            const classId = all.some(c => c.id === selectedClassId)
+                ? selectedClassId : (all[0]?.id ?? null);
+            if (classId !== selectedClassId) setSelectedClassId(classId);
+            setStudents(classId == null ? [] : await listStudents(classId));
         } catch (error) {
             console.error(error);
         }
@@ -46,8 +57,9 @@ export default function ClassScreen() {
         }
 
         try {
+            if (selectedClassId == null) throw new Error("Najprv vyberte triedu.");
             await addStudentToDb({
-                classId: 1,
+                classId: selectedClassId,
                 firstName,
                 lastName,
             });
@@ -177,6 +189,31 @@ export default function ClassScreen() {
                     paddingBottom: 60,
                 }}
             >
+                <SyncControls onSynced={loadStudents} />
+                <View style={{backgroundColor:'white',padding:12,borderRadius:14,marginBottom:16}}>
+                    <Text style={{fontWeight:'700',marginBottom:8}}>Triedy</Text>
+                    <View style={{flexDirection:'row',flexWrap:'wrap',gap:7,marginBottom:10}}>
+                      {classes.map(c => <TouchableOpacity key={c.id}
+                        onPress={()=>setSelectedClassId(c.id)}
+                        style={{padding:8,borderRadius:8,
+                          backgroundColor:selectedClassId===c.id?'#3b82f6':'#e2e8f0'}}>
+                        <Text style={{color:selectedClassId===c.id?'white':'#0f172a'}}>{c.name}</Text>
+                      </TouchableOpacity>)}
+                    </View>
+                    <TextInput placeholder="Názov novej triedy" value={newClassName}
+                      onChangeText={setNewClassName}
+                      style={{backgroundColor:'#eef2ff',padding:10,borderRadius:8,marginBottom:6}}/>
+                    <TouchableOpacity onPress={()=>{void (async()=>{
+                      try {
+                        const created = await createClassInDb(newClassName);
+                        setNewClassName('');
+                        setSelectedClassId(created.id);
+                      } catch(e) { Alert.alert('Chyba',String(e)); }
+                    })();}}
+                      style={{backgroundColor:'#3b82f6',padding:10,borderRadius:8}}>
+                      <Text style={{color:'white',textAlign:'center'}}>Pridať triedu</Text>
+                    </TouchableOpacity>
+                </View>
                 <Text
                     style={{
                         fontSize: 30,

@@ -1,4 +1,5 @@
 import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
+import * as Crypto from 'expo-crypto';
 
 const DATABASE_NAME = 'read-analyzer.db';
 let databasePromise: Promise<SQLiteDatabase> | undefined;
@@ -95,6 +96,35 @@ async function openAndInitializeDatabase(): Promise<SQLiteDatabase> {
           );
           CREATE INDEX IF NOT EXISTS idx_recordings_student_id ON recordings(student_id);
           PRAGMA user_version = 2;
+        `);
+      }
+      // Remote sync v3; never replace existing local INTEGER primary keys.
+      if ((version?.user_version ?? 0) < 3) {
+        await db.execAsync(`
+          ALTER TABLE classes ADD COLUMN sync_id TEXT;
+          ALTER TABLE classes ADD COLUMN sync_op_id TEXT;
+          ALTER TABLE classes ADD COLUMN server_version INTEGER NOT NULL DEFAULT 0;
+          ALTER TABLE classes ADD COLUMN sync_dirty INTEGER NOT NULL DEFAULT 1;
+          ALTER TABLE classes ADD COLUMN sync_deleted INTEGER NOT NULL DEFAULT 0;
+          ALTER TABLE students ADD COLUMN sync_id TEXT;
+          ALTER TABLE students ADD COLUMN sync_op_id TEXT;
+          ALTER TABLE students ADD COLUMN server_version INTEGER NOT NULL DEFAULT 0;
+          ALTER TABLE students ADD COLUMN sync_dirty INTEGER NOT NULL DEFAULT 1;
+          ALTER TABLE students ADD COLUMN sync_deleted INTEGER NOT NULL DEFAULT 0;
+          CREATE TABLE school_sync_state (id INTEGER PRIMARY KEY CHECK(id=1), cursor INTEGER NOT NULL DEFAULT 0);
+          INSERT INTO school_sync_state(id,cursor) VALUES(1,0);
+        `);
+        for (const table of ['classes', 'students'] as const) {
+          const rows = await db.getAllAsync<{ id: number }>(`SELECT id FROM ${table} WHERE sync_id IS NULL`);
+          for (const row of rows) {
+            await db.runAsync(`UPDATE ${table} SET sync_id=?, sync_op_id=? WHERE id=?`,
+              Crypto.randomUUID(), Crypto.randomUUID(), row.id);
+          }
+        }
+        await db.execAsync(`
+          CREATE UNIQUE INDEX idx_classes_sync_id ON classes(sync_id);
+          CREATE UNIQUE INDEX idx_students_sync_id ON students(sync_id);
+          PRAGMA user_version = 3;
         `);
       }
       // RA-14 can extend the persisted transcription/analysis metadata later.

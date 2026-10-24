@@ -91,3 +91,17 @@ models/checkpoints/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
+
+# Remote server storage (SQLite database + WAV recordings)
+server-data/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+
+# Expo local development files
+.expo/
+.expo-shared/
+
+# Local environment configuration
+.env.remote
+.env.production

@@ -1,3 +1,4 @@
+import { authorizedHeaders } from './serverAuth';
 /** RA-13: transport for the FastAPI contract implemented in step 1. */
 import { File, Paths } from 'expo-file-system';
 import { copyAsync } from 'expo-file-system/legacy';
@@ -83,9 +84,8 @@ export async function submitTranscription(wavUri: string, textCode: string): Pro
     const form = new FormData();
     form.append('text_code', textCode);
     form.append('file', uploadCopy);
-    
     // Do not set Content-Type: fetch needs to generate the multipart boundary.
-    const response = await fetchTimed(url, { method: 'POST', body: form }, 90000);
+    const response = await fetchTimed(url, { method: 'POST', headers: await authorizedHeaders(), body: form }, 90000);
     return await readResponse<TaskCreated>(response);
   } finally {
     // Never delete wavUri: it is the teacher's confirmed Downloads recording.
@@ -96,6 +96,6 @@ export async function submitTranscription(wavUri: string, textCode: string): Pro
 }
 
 export async function fetchTask(taskId: string): Promise<TaskInfo> {
-  const response = await fetchTimed(`${baseUrl()}/api/v1/tasks/${encodeURIComponent(taskId)}`);
+  const response = await fetchTimed(`${baseUrl()}/api/v1/tasks/${encodeURIComponent(taskId)}`, { headers: await authorizedHeaders() });
   return readResponse<TaskInfo>(response);
 }
