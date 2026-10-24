@@ -39,3 +39,7 @@ export type {
 export { saveRecording, saveAndProcess, resumeRecordingProcessing } from './processingService';
 export { getLatestSavedRecording, getSavedRecording, listSavedRecordings } from './recordingRepository';
 export type { ProcessingStatus } from './types';
+
+// RA-14: offline notes and sync state.
+export { getStudentNote, saveStudentNote } from './studentNotes';
+export { getSchoolSyncSummary } from './schoolSync';

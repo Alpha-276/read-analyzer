@@ -127,7 +127,23 @@ async function openAndInitializeDatabase(): Promise<SQLiteDatabase> {
           PRAGMA user_version = 3;
         `);
       }
-      // RA-14 can extend the persisted transcription/analysis metadata later.
+      // RA-14: offline teacher notes and durable last successful sync time.
+      if ((version?.user_version ?? 0) < 4) {
+        await db.execAsync(`
+          CREATE TABLE IF NOT EXISTS student_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL UNIQUE REFERENCES students(id) ON DELETE RESTRICT,
+            body TEXT NOT NULL DEFAULT '',
+            sync_id TEXT NOT NULL UNIQUE,
+            sync_op_id TEXT,
+            server_version INTEGER NOT NULL DEFAULT 0,
+            sync_dirty INTEGER NOT NULL DEFAULT 1,
+            sync_deleted INTEGER NOT NULL DEFAULT 0
+          );
+          ALTER TABLE school_sync_state ADD COLUMN last_success_at TEXT;
+          PRAGMA user_version = 4;
+        `);
+      }
     });
 
     return db;

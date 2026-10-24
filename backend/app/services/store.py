@@ -46,6 +46,11 @@ def initialize():
             last_name TEXT NOT NULL, version INTEGER NOT NULL,
             deleted INTEGER NOT NULL DEFAULT 0
         );
+        CREATE TABLE IF NOT EXISTS student_notes (
+            id TEXT PRIMARY KEY, student_id TEXT NOT NULL UNIQUE,
+            body TEXT NOT NULL DEFAULT '', version INTEGER NOT NULL,
+            deleted INTEGER NOT NULL DEFAULT 0
+        );
         CREATE TABLE IF NOT EXISTS sync_events (
             seq INTEGER PRIMARY KEY AUTOINCREMENT, entity TEXT NOT NULL,
             entity_id TEXT NOT NULL, version INTEGER NOT NULL,

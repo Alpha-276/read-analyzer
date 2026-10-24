@@ -8,6 +8,7 @@ import RecordingsScreen from "./screens/RecordingsScreen";
 import AnalysisScreen from "./screens/AnalysisScreen";
 
 import BottomNavigation from "./components/BottomNavigation";
+import AutoSync from "./components/AutoSync";
 import type { WavRecording } from "./services";
 
 import { initializeDatabase, cleanupAbandonedRecordings, getLatestSavedRecording, resumeRecordingProcessing } from "./services";
@@ -95,6 +96,7 @@ export default function App() {
                 flex: 1,
             }}
         >
+            <AutoSync />
             <View
                 style={{
                     flex: 1,

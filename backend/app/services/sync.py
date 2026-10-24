@@ -7,12 +7,22 @@ from backend.app.services.store import connect, transaction
 def payload(entity, row):
     if entity == 'class':
         return {'name': row['name']}
+    if entity == 'note':
+        return {'student_id': row['student_id'], 'body': row['body']}
     return {'class_id': row['class_id'], 'first_name': row['first_name'], 'last_name': row['last_name']}
 
 
 def _event(db, entity, entity_id, version, deleted, data):
     db.execute('INSERT INTO sync_events(entity, entity_id, version, deleted, data_json) VALUES(?,?,?,?,?)',
                (entity, entity_id, version, int(deleted), json.dumps(data, ensure_ascii=False)))
+
+
+def _tombstone_notes(db, student_id):
+    notes = db.execute('SELECT * FROM student_notes WHERE student_id=? AND deleted=0', (student_id,)).fetchall()
+    for note in notes:
+        version = note['version'] + 1
+        db.execute('UPDATE student_notes SET deleted=1, version=? WHERE id=?', (version, note['id']))
+        _event(db, 'note', note['id'], version, True, payload('note', note))
 
 
 def push(changes):
@@ -28,7 +38,7 @@ def push(changes):
                     raise HTTPException(409, 'Reused operation ID for another entity')
                 accepted.append({'entity': entity, 'id': entity_id, 'op_id': op_id, 'version': old_op['version']})
                 continue
-            table = 'classes' if entity == 'class' else 'students'
+            table = {'class':'classes','student':'students','note':'student_notes'}[entity]
             row = db.execute(f'SELECT * FROM {table} WHERE id=?', (entity_id,)).fetchone()
             current_version = row['version'] if row else 0
             if current_version != change.base_version:
@@ -45,9 +55,12 @@ def push(changes):
                     if entity == 'class':
                         db.execute('INSERT INTO classes(id,name,version,deleted) VALUES(?,?,?,1)',
                                    (entity_id, '', 1))
-                    else:
+                    elif entity == 'student':
                         db.execute('INSERT INTO students(id,class_id,first_name,last_name,version,deleted) VALUES(?,?,?,?,?,1)',
                                    (entity_id, '', '', '', 1))
+                    else:
+                        db.execute('INSERT INTO student_notes(id,student_id,body,version,deleted) VALUES(?,?,?,?,1)',
+                                   (entity_id, '', '', 1))
                 data = payload(entity, row) if row else {}
             elif entity == 'class':
                 if not change.name or not change.name.strip():
@@ -56,6 +69,18 @@ def push(changes):
                          ON CONFLICT(id) DO UPDATE SET name=excluded.name, version=excluded.version, deleted=0''',
                            (entity_id, change.name.strip(), current_version + 1))
                 data = {'name': change.name.strip()}
+            elif entity == 'note':
+                parent = db.execute('SELECT 1 FROM students WHERE id=? AND deleted=0',
+                                    (str(change.student_id),)).fetchone()
+                if not parent:
+                    raise HTTPException(422, f'Parent student {change.student_id} is missing or deleted')
+                body = (change.body or '').strip()
+                db.execute('''INSERT INTO student_notes(id,student_id,body,version,deleted)
+                         VALUES(?,?,?,?,0)
+                         ON CONFLICT(id) DO UPDATE SET student_id=excluded.student_id,
+                         body=excluded.body, version=excluded.version,deleted=0''',
+                           (entity_id, str(change.student_id), body, current_version + 1))
+                data = {'student_id': str(change.student_id), 'body': body}
             else:
                 parent = db.execute('SELECT 1 FROM classes WHERE id=? AND deleted=0',
                                     (str(change.class_id),)).fetchone()
@@ -71,6 +96,8 @@ def push(changes):
                           version=excluded.version,deleted=0''',
                            (entity_id, str(change.class_id), first, last, current_version + 1))
                 data = {'class_id': str(change.class_id), 'first_name': first, 'last_name': last}
+            if entity == 'student' and change.deleted:
+                _tombstone_notes(db, entity_id)
             version = current_version + 1
             _event(db, entity, entity_id, version, change.deleted, data)
             db.execute('INSERT INTO sync_applied(op_id,entity,entity_id,version) VALUES(?,?,?,?)',
@@ -83,6 +110,7 @@ def push(changes):
                     next_version = student['version'] + 1
                     db.execute('UPDATE students SET deleted=1,version=? WHERE id=?', (next_version, student['id']))
                     _event(db, 'student', student['id'], next_version, True, payload('student', student))
+                    _tombstone_notes(db, student['id'])
     return {'accepted': accepted, 'conflicts': conflicts}
 
 

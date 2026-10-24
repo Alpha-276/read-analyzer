@@ -1,5 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import { getDatabase } from './database';
+import { notifySchoolDataChanged } from './syncEvents';
 import type {
   AddStudentInput,
   SchoolClass,
@@ -34,6 +35,7 @@ export async function createClass(name: string): Promise<SchoolClass> {
     trimmedName, Crypto.randomUUID(), Crypto.randomUUID(),
   );
 
+  notifySchoolDataChanged();
   return { id: result.lastInsertRowId, name: trimmedName };
 }
 
@@ -68,6 +70,7 @@ export async function addStudent(input: AddStudentInput): Promise<Student> {
     Crypto.randomUUID(), Crypto.randomUUID(),
   );
 
+  notifySchoolDataChanged();
   return { id: result.lastInsertRowId, classId, firstName, lastName };
 }
 
@@ -92,6 +95,7 @@ export async function updateStudent(
     throw new Error('Žiak neexistuje.');
   }
 
+  notifySchoolDataChanged();
   return student;
 }
 
@@ -117,6 +121,15 @@ export async function deleteStudent(id: number): Promise<void> {
   if (result.changes === 0) {
     throw new Error('Žiak neexistuje.');
   }
+  // Tombstone the note before the student is removed remotely.
+  const note = await db.getFirstAsync<{ id: number }>(
+    'SELECT id FROM student_notes WHERE student_id=? AND sync_deleted=0', id,
+  );
+  if (note) await db.runAsync(
+    'UPDATE student_notes SET sync_deleted=1,sync_dirty=1,sync_op_id=? WHERE id=?',
+    Crypto.randomUUID(), note.id,
+  );
+  notifySchoolDataChanged();
 }
 
 /** Tombstone a class without destroying historic references or local recordings. */
@@ -135,6 +148,13 @@ export async function deleteClass(id: number): Promise<void> {
     for (const student of students) {
       await db.runAsync('UPDATE students SET sync_deleted=1,sync_dirty=1,sync_op_id=? WHERE id=?',
         Crypto.randomUUID(), student.id);
+      const note = await db.getFirstAsync<{ id: number }>(
+        'SELECT id FROM student_notes WHERE student_id=? AND sync_deleted=0', student.id);
+      if (note) await db.runAsync(
+        'UPDATE student_notes SET sync_deleted=1,sync_dirty=1,sync_op_id=? WHERE id=?',
+        Crypto.randomUUID(), note.id);
+
     }
   });
+  notifySchoolDataChanged();
 }

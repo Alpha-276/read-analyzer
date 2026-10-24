@@ -1,10 +1,13 @@
 import SyncControls from "../components/SyncControls";
+import { getStudentNote, saveStudentNote } from "../services/studentNotes";
+import { onSchoolDataChanged } from "../services/syncEvents";
 import {
     View,
     Text,
     TextInput,
     TouchableOpacity,
     ScrollView,
+    Modal,
     Alert,
 } from "react-native";
 
@@ -27,9 +30,13 @@ export default function ClassScreen() {
     const [newClassName, setNewClassName] = useState("");
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
+    const [noteStudentId, setNoteStudentId] = useState<number | null>(null);
+    const [noteText, setNoteText] = useState("");
+    const [savingNote, setSavingNote] = useState(false);
 
     useEffect(() => {
         void loadStudents();
+        return onSchoolDataChanged(() => { void loadStudents(); });
     }, [selectedClassId]);
 
     const loadStudents = async () => {
@@ -147,6 +154,29 @@ export default function ClassScreen() {
             setLastName("");
         } catch (error) {
             console.error(error);
+        }
+    };
+
+    const editNote = async (id: number) => {
+        try {
+            setNoteText(await getStudentNote(id));
+            setNoteStudentId(id);
+        } catch (error) {
+            Alert.alert("Chyba", String(error));
+        }
+    };
+
+    const storeNote = async () => {
+        if (noteStudentId == null || savingNote) return;
+        setSavingNote(true);
+        try {
+            await saveStudentNote(noteStudentId, noteText);
+            setNoteStudentId(null);
+            setNoteText("");
+        } catch (error) {
+            Alert.alert("Chyba", String(error));
+        } finally {
+            setSavingNote(false);
         }
     };
 
@@ -406,6 +436,13 @@ export default function ClassScreen() {
                             </Text>
                         </View>
 
+                        <TouchableOpacity onPress={() => { void editNote(student.id); }}
+                            accessibilityLabel={`Poznámka žiaka ${student.firstName} ${student.lastName}`}
+                            style={{width:34,height:34,borderRadius:17,backgroundColor:'#f0fdf4',
+                              justifyContent:'center',alignItems:'center',marginRight:8}}>
+                            <Text>📝</Text>
+                        </TouchableOpacity>
+
                         <TouchableOpacity
                             onPress={() =>
                                 editStudent(student.id)
@@ -443,6 +480,25 @@ export default function ClassScreen() {
                     </View>
                 ))}
             </ScrollView>
+            <Modal visible={noteStudentId != null} transparent animationType="slide"
+                onRequestClose={() => setNoteStudentId(null)}>
+                <View style={{flex:1,justifyContent:'center',backgroundColor:'#0008',padding:20}}>
+                    <View style={{backgroundColor:'white',padding:16,borderRadius:16}}>
+                        <Text style={{fontWeight:'700',marginBottom:8}}>Poznámka k žiakovi</Text>
+                        <TextInput multiline value={noteText} onChangeText={setNoteText}
+                            placeholder="Textová poznámka (aj bez internetu)"
+                            style={{backgroundColor:'#eef2ff',borderRadius:10,padding:12,
+                              minHeight:100,maxHeight:240,textAlignVertical:'top'}} />
+                        <TouchableOpacity disabled={savingNote} onPress={()=>{void storeNote();}}
+                            style={{backgroundColor:'#3b82f6',padding:12,borderRadius:10,marginTop:8}}>
+                            <Text style={{color:'white',textAlign:'center'}}>Uložiť poznámku</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={()=>setNoteStudentId(null)} style={{padding:10}}>
+                            <Text style={{textAlign:'center',color:'#64748b'}}>Zrušiť</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
