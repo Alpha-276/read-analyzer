@@ -1,4 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+
+import {
+    saveRecording as saveLocalRecording,
+    saveAndProcess,
+    type WavRecording,
+} from "../services";
+
 import {
     View,
     Text,
@@ -8,40 +15,49 @@ import {
     Alert,
 } from "react-native";
 
-export default function RecordingsScreen() {
-    const [saved, setSaved] =
-        useState(false);
 
-    const [processed, setProcessed] =
-        useState(false);
 
-    const [transcript, setTranscript] =
-        useState(
-            "Mama mala malú záhradu. V záhrade rástli kvety a stromy. Deti sa hrali na záhrade každý deň. Jana zbierala kvety pre mamu."
-        );
+type RecordingsScreenProps = {
+    recording: WavRecording | null;
+    onRecordingChange: (recording: WavRecording) => void;
+    resuming?: boolean;
+};
 
-    const wordCount = transcript
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean).length;
+export default function RecordingsScreen({ recording, onRecordingChange, resuming = false }: RecordingsScreenProps) {
+    const saved = recording?.status === "saved";
+    const confirmingRef = useRef(false);
+    const [action, setAction] = useState<"save" | "process" | null>(null);
 
-    const saveRecording = () => {
-        setSaved(true);
+    // The transcription comes only from the ASR server, not the demo text.
+    const transcript = recording?.transcript ?? "";
+    const wordCount = transcript.trim() ? transcript.trim().split(/\s+/).length : 0;
 
-        Alert.alert(
-            "Uložené",
-            "Nahrávka bola úspešne uložená."
-        );
+    const runAction = async (kind: "save" | "process") => {
+        if (!recording || confirmingRef.current) return;
+        confirmingRef.current = true;
+        setAction(kind);
+        try {
+            const result = kind === "save"
+                ? await saveLocalRecording(recording, onRecordingChange)
+                : await saveAndProcess(recording, onRecordingChange);
+            onRecordingChange(result);
+            Alert.alert(
+                kind === "save" ? "Uložené" : "Hotovo",
+                kind === "save"
+                    ? "Nahrávka je uložená v Download/CitamDobre/deti/."
+                    : "Prepis nahrávky je dokončený."
+            );
+        } catch (error) {
+            Alert.alert("Chyba", error instanceof Error ? error.message : String(error));
+        } finally {
+            confirmingRef.current = false;
+            setAction(null);
+        }
     };
 
-    const processRecording = () => {
-        setProcessed(true);
-
-        Alert.alert(
-            "Spracovanie dokončené",
-            "Analýza nahrávky bola úspešne dokončená."
-        );
-    };
+    const saveRecording = () => void runAction("save");
+    const processRecording = () => void runAction("process");
+    const isSaving = action !== null || resuming;
 
     return (
         <View
@@ -93,12 +109,16 @@ export default function RecordingsScreen() {
                         marginBottom: 25,
                     }}
                 >
-                    Jana Novotná · T01 · 0:47
+                    {recording
+                        ? `${recording.student.firstName} ${recording.student.lastName} · ${recording.textId} · ${recording.durationSeconds} s`
+                        : "Zatiaľ nie je vybraná uložená nahrávka"}
                 </Text>
 
                 <TouchableOpacity
                     onPress={saveRecording}
+                    disabled={!recording || saved || isSaving}
                     style={{
+                        opacity: !recording || saved || isSaving ? 0.6 : 1,
                         backgroundColor: "white",
                         borderWidth: 1.5,
                         borderColor: "#3b82f6",
@@ -118,15 +138,17 @@ export default function RecordingsScreen() {
                             fontWeight: "700",
                         }}
                     >
-                        {saved
-                            ? "✅ Nahrávka uložená"
-                            : "💾 Uložiť nahrávku"}
+                        {recording
+                            ? (saved ? "✅ WAV uložený" : action === "save" ? "⏳ Ukladá sa..." : "💾 Uložiť nahrávku")
+                            : "💾 Žiadna WAV nahrávka"}
                     </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                     onPress={processRecording}
+                    disabled={!recording || isSaving || recording?.processingStatus === "done"}
                     style={{
+                        opacity: !recording || isSaving || recording?.processingStatus === "done" ? 0.6 : 1,
                         backgroundColor: "#3b82f6",
 
                         borderRadius: 18,
@@ -150,9 +172,10 @@ export default function RecordingsScreen() {
                             fontWeight: "700",
                         }}
                     >
-                        {processed
-                            ? "✅ Spracovanie dokončené"
-                            : "⚙️ Uložiť a spracovať nahrávku"}
+                        {resuming ? "⏳ Obnovuje sa spracovanie..."
+                            : action === "process" ? "⏳ Spracúva sa..."
+                            : recording?.processingStatus === "done" ? "✅ Prepis dokončený"
+                            : saved ? "🔄 Spracovať nahrávku" : "⚙️ Uložiť a spracovať nahrávku"}
                     </Text>
                 </TouchableOpacity>
 
@@ -195,7 +218,7 @@ export default function RecordingsScreen() {
                                 fontSize: 12,
                             }}
                         >
-                            Upraviteľné
+                            {recording?.processingStatus === "done" ? "Výsledok ASR" : "Zatiaľ nedostupný"}
                         </Text>
                     </View>
 
@@ -213,7 +236,8 @@ export default function RecordingsScreen() {
                         <TextInput
                             multiline
                             value={transcript}
-                            onChangeText={setTranscript}
+                            editable={false}
+                            placeholder="Prepis sa zobrazí po spracovaní nahrávky."
                             textAlignVertical="top"
                             style={{
                                 minHeight: 140,
@@ -246,17 +270,17 @@ export default function RecordingsScreen() {
                                 fontSize: 12,
                             }}
                         >
-                            Dĺžka nahrávky: 0:47
+                            Dĺžka nahrávky: {recording?.durationSeconds ?? 0} s
                         </Text>
                     </View>
                 </View>
 
-                {processed && (
+                {saved && (
                     <View
                         style={{
                             marginTop: 20,
 
-                            backgroundColor: "#dcfce7",
+                            backgroundColor: recording?.processingStatus === "done" ? "#dcfce7" : "#e2e8f0",
 
                             borderRadius: 16,
 
@@ -269,8 +293,21 @@ export default function RecordingsScreen() {
                                 fontWeight: "700",
                             }}
                         >
-                            Analýza pripravená na spracovanie.
+                            {recording?.processingStatus === "done"
+                                ? "Prepis bol dokončený."
+                                : recording?.processingStatus === "processing"
+                                    ? "Prebieha rozpoznávanie reči..."
+                                    : recording?.processingStatus === "pending"
+                                        ? "Čaká sa na spracovanie..."
+                                        : recording?.processingStatus === "error"
+                                            ? "Spracovanie nahrávky zlyhalo."
+                                            : "Nahrávka zatiaľ nie je spracovaná."}
                         </Text>
+                        {!!recording?.processingError && (
+                            <Text style={{ marginTop: 8, color: "#b91c1c" }}>
+                                {recording.processingError} — WAV zostal v telefóne. Skúste spracovanie znova.
+                            </Text>
+                        )}
                     </View>
                 )}
             </ScrollView>

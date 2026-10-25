@@ -1,0 +1,6 @@
+# Only the runtime dependencies from ml/benchmark.py are needed for RA-13.
+# Benchmark-only packages (pandas, jiwer, whisper, etc.) stay in ml/requirements.txt.
+torch>=2.2,<3
+transformers>=4.40,<5
+librosa>=0.10.2,<0.12
+soundfile>=0.12.1,<0.14

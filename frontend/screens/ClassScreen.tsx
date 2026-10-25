@@ -1,31 +1,52 @@
+import SyncControls from "../components/SyncControls";
+import { getStudentNote, saveStudentNote } from "../services/studentNotes";
+import { onSchoolDataChanged } from "../services/syncEvents";
 import {
     View,
     Text,
     TextInput,
     TouchableOpacity,
     ScrollView,
+    Modal,
+    Alert,
 } from "react-native";
 
 import { useEffect, useState } from "react";
 
 import {
     listStudents,
+    listClasses,
+    createClass as createClassInDb,
+    type SchoolClass,
     addStudent as addStudentToDb,
     updateStudent as updateStudentInDb,
+    deleteStudent as deleteStudentFromDb,
+    type Student,
 } from "../services";
 
 export default function ClassScreen() {
+    const [classes, setClasses] = useState<SchoolClass[]>([]);
+    const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+    const [newClassName, setNewClassName] = useState("");
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
+    const [noteStudentId, setNoteStudentId] = useState<number | null>(null);
+    const [noteText, setNoteText] = useState("");
+    const [savingNote, setSavingNote] = useState(false);
 
     useEffect(() => {
-        loadStudents();
-    }, []);
+        void loadStudents();
+        return onSchoolDataChanged(() => { void loadStudents(); });
+    }, [selectedClassId]);
 
     const loadStudents = async () => {
         try {
-            const data = await listStudents(1);
-            setStudents(data);
+            const all = await listClasses();
+            setClasses(all);
+            const classId = all.some(c => c.id === selectedClassId)
+                ? selectedClassId : (all[0]?.id ?? null);
+            if (classId !== selectedClassId) setSelectedClassId(classId);
+            setStudents(classId == null ? [] : await listStudents(classId));
         } catch (error) {
             console.error(error);
         }
@@ -34,7 +55,8 @@ export default function ClassScreen() {
     const [editingId, setEditingId] =
         useState<number | null>(null);
 
-    const [students, setStudents] = useState<any[]>([]);
+    const [students, setStudents] = useState<Student[]>([]);
+    const [deletingId, setDeletingId] = useState<number | null>(null);
 
     const addStudent = async () => {
         if (!firstName.trim() || !lastName.trim()) {
@@ -42,8 +64,9 @@ export default function ClassScreen() {
         }
 
         try {
+            if (selectedClassId == null) throw new Error("Najprv vyberte triedu.");
             await addStudentToDb({
-                classId: 1,
+                classId: selectedClassId,
                 firstName,
                 lastName,
             });
@@ -57,18 +80,40 @@ export default function ClassScreen() {
         }
     };
 
-    const deleteStudent = (id: number) => {
-        setStudents(
-            students.filter(
-                (student) => student.id !== id
-            )
-        );
+    const deleteStudent = async (id: number) => {
+        if (deletingId !== null) return;
+        setDeletingId(id);
+        try {
+            await deleteStudentFromDb(id);
+            // Update the screen only after SQLite confirms the deletion.
+            setStudents(current => current.filter(student => student.id !== id));
 
-        if (editingId === id) {
-            setEditingId(null);
-            setFirstName("");
-            setLastName("");
+            if (editingId === id) {
+                setEditingId(null);
+                setFirstName("");
+                setLastName("");
+            }
+        } catch (error) {
+            console.error("Failed to delete student:", error);
+            Alert.alert("Chyba", "Žiaka sa nepodarilo odstrániť. Skúste to znova.");
+        } finally {
+            setDeletingId(null);
         }
+    };
+
+    const confirmDeleteStudent = (student: Student) => {
+        Alert.alert(
+            "Odstrániť žiaka?",
+            `Naozaj chcete odstrániť žiaka ${student.firstName} ${student.lastName} zo zoznamu?\n\nUložené WAV nahrávky v priečinku Download/CitamDobre zostanú zachované.`,
+            [
+                { text: "Zrušiť", style: "cancel" },
+                {
+                    text: "Odstrániť",
+                    style: "destructive",
+                    onPress: () => { void deleteStudent(student.id); },
+                },
+            ],
+        );
     };
 
     const editStudent = (id: number) => {
@@ -112,6 +157,29 @@ export default function ClassScreen() {
         }
     };
 
+    const editNote = async (id: number) => {
+        try {
+            setNoteText(await getStudentNote(id));
+            setNoteStudentId(id);
+        } catch (error) {
+            Alert.alert("Chyba", String(error));
+        }
+    };
+
+    const storeNote = async () => {
+        if (noteStudentId == null || savingNote) return;
+        setSavingNote(true);
+        try {
+            await saveStudentNote(noteStudentId, noteText);
+            setNoteStudentId(null);
+            setNoteText("");
+        } catch (error) {
+            Alert.alert("Chyba", String(error));
+        } finally {
+            setSavingNote(false);
+        }
+    };
+
     const cancelEditing = () => {
         setEditingId(null);
         setFirstName("");
@@ -151,6 +219,31 @@ export default function ClassScreen() {
                     paddingBottom: 60,
                 }}
             >
+                <SyncControls onSynced={loadStudents} />
+                <View style={{backgroundColor:'white',padding:12,borderRadius:14,marginBottom:16}}>
+                    <Text style={{fontWeight:'700',marginBottom:8}}>Triedy</Text>
+                    <View style={{flexDirection:'row',flexWrap:'wrap',gap:7,marginBottom:10}}>
+                      {classes.map(c => <TouchableOpacity key={c.id}
+                        onPress={()=>setSelectedClassId(c.id)}
+                        style={{padding:8,borderRadius:8,
+                          backgroundColor:selectedClassId===c.id?'#3b82f6':'#e2e8f0'}}>
+                        <Text style={{color:selectedClassId===c.id?'white':'#0f172a'}}>{c.name}</Text>
+                      </TouchableOpacity>)}
+                    </View>
+                    <TextInput placeholder="Názov novej triedy" value={newClassName}
+                      onChangeText={setNewClassName}
+                      style={{backgroundColor:'#eef2ff',padding:10,borderRadius:8,marginBottom:6}}/>
+                    <TouchableOpacity onPress={()=>{void (async()=>{
+                      try {
+                        const created = await createClassInDb(newClassName);
+                        setNewClassName('');
+                        setSelectedClassId(created.id);
+                      } catch(e) { Alert.alert('Chyba',String(e)); }
+                    })();}}
+                      style={{backgroundColor:'#3b82f6',padding:10,borderRadius:8}}>
+                      <Text style={{color:'white',textAlign:'center'}}>Pridať triedu</Text>
+                    </TouchableOpacity>
+                </View>
                 <Text
                     style={{
                         fontSize: 30,
@@ -277,7 +370,7 @@ export default function ClassScreen() {
                     ŽIACI V TRIEDE
                 </Text>
 
-                {students.map((student) => (
+                {students.map((student, index) => (
                     <View
                         key={student.id}
                         style={{
@@ -339,9 +432,16 @@ export default function ClassScreen() {
                                     marginTop: 2,
                                 }}
                             >
-                                Žiak #{student.id}
+                                Žiak č. {index + 1}
                             </Text>
                         </View>
+
+                        <TouchableOpacity onPress={() => { void editNote(student.id); }}
+                            accessibilityLabel={`Poznámka žiaka ${student.firstName} ${student.lastName}`}
+                            style={{width:34,height:34,borderRadius:17,backgroundColor:'#f0fdf4',
+                              justifyContent:'center',alignItems:'center',marginRight:8}}>
+                            <Text>📝</Text>
+                        </TouchableOpacity>
 
                         <TouchableOpacity
                             onPress={() =>
@@ -361,9 +461,10 @@ export default function ClassScreen() {
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            onPress={() =>
-                                deleteStudent(student.id)
-                            }
+                            onPress={() => confirmDeleteStudent(student)}
+                            disabled={deletingId !== null}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Odstrániť žiaka ${student.firstName} ${student.lastName}`}
                             style={{
                                 width: 34,
                                 height: 34,
@@ -371,13 +472,33 @@ export default function ClassScreen() {
                                 backgroundColor: "#fef2f2",
                                 justifyContent: "center",
                                 alignItems: "center",
+                                opacity: deletingId !== null ? 0.5 : 1,
                             }}
                         >
-                            <Text>🗑️</Text>
+                            <Text>{deletingId === student.id ? "…" : "🗑️"}</Text>
                         </TouchableOpacity>
                     </View>
                 ))}
             </ScrollView>
+            <Modal visible={noteStudentId != null} transparent animationType="slide"
+                onRequestClose={() => setNoteStudentId(null)}>
+                <View style={{flex:1,justifyContent:'center',backgroundColor:'#0008',padding:20}}>
+                    <View style={{backgroundColor:'white',padding:16,borderRadius:16}}>
+                        <Text style={{fontWeight:'700',marginBottom:8}}>Poznámka k žiakovi</Text>
+                        <TextInput multiline value={noteText} onChangeText={setNoteText}
+                            placeholder="Textová poznámka (aj bez internetu)"
+                            style={{backgroundColor:'#eef2ff',borderRadius:10,padding:12,
+                              minHeight:100,maxHeight:240,textAlignVertical:'top'}} />
+                        <TouchableOpacity disabled={savingNote} onPress={()=>{void storeNote();}}
+                            style={{backgroundColor:'#3b82f6',padding:12,borderRadius:10,marginTop:8}}>
+                            <Text style={{color:'white',textAlign:'center'}}>Uložiť poznámku</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={()=>setNoteStudentId(null)} style={{padding:10}}>
+                            <Text style={{textAlign:'center',color:'#64748b'}}>Zrušiť</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
