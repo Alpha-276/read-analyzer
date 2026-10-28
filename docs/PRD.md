@@ -177,39 +177,33 @@ Názov súboru: `{dátum}_{čas}_{kód textu}` – čas rozlišuje viac nahrávo
 
 **Android / Frontend – Sergiy Boyko**
 
-* `RA-9` Inicializácia Android aplikácie a úvodná obrazovka – ✅ Done
-* `RA-10` Obrazovka nahrávania s výberom dieťaťa a textu – ✅ Done
-* `RA-23` Obrazovka Manažment triedy – ✅ Done
-* `RA-15` Obrazovka po nahrávaní (uloženie, prepis) – ✅ Done
-* `RA-16` Nastavenia nahrávania (Setup Page) – ✅ Done
-* `RA-24` Výber priečinka na ukladanie a poznámky k čítaniu – 🔄 In Progress
-* `RA-25` Webová analytická aplikácia pre výskumníkov a logopédov – ⏳ To Do
-* `RA-20` Zoznam nahrávok a profil dieťaťa s históriou – 📋 Backlog
+* `RA-9` Inicializácia Android aplikácie a úvodná obrazovka 
+* `RA-10` Obrazovka nahrávania s výberom dieťaťa a textu 
+* `RA-23` Obrazovka Manažment triedy 
+* `RA-15` Obrazovka po nahrávaní (uloženie, prepis) 
+* `RA-16` Nastavenia nahrávania (Setup Page) 
+* `RA-24` Výber priečinka na ukladanie a poznámky k čítaniu 
+* `RA-25` Webová analytická aplikácia pre výskumníkov a logopédov 
+* `RA-20` Zoznam nahrávok a profil dieťaťa s históriou 
 
 **Backend / Core – Alina Kuznetsova**
 
-* `RA-7` Dátová vrstva pre triedy a žiakov – ✅ Done
-* `RA-8` Lokálne ukladanie WAV do priečinka žiaka s dátumom – ✅ Done
-* `RA-13` Vzdialený analytický server a synchronizácia s mobilnou aplikáciou – 🔄 In Progress
-* `RA-14` Lokálna SQLite databáza a offline synchronizácia so serverom – ⏳ To Do
-* `RA-26` Integrácia s Google Drive a ekosystémom Google – ⏳ To Do
-* `RA-19` Porovnanie s predchádzajúcim čítaním žiaka – 📋 Backlog
-* `RA-21` Export výsledkov (PDF/CSV) – 📋 Backlog
+* `RA-7` Dátová vrstva pre triedy a žiakov 
+* `RA-8` Lokálne ukladanie WAV do priečinka žiaka s dátumom
+* `RA-13` Vzdialený analytický server a synchronizácia s mobilnou aplikáciou 
+* `RA-14` Lokálna SQLite databáza a offline synchronizácia so serverom 
+* `RA-26` Integrácia s Google Drive a ekosystémom Google 
+* `RA-19` Porovnanie s predchádzajúcim čítaním žiaka
+* `RA-21` Export výsledkov (PDF/CSV)
 
 **ML / Data – Dmytrii Chalykh**
 
-* `RA-5` Príprava textov (T01..T0X) a audit datasetu – ✅ Done
-* `RA-6` Prototyp rozpoznávania reči pre slovenčinu – ✅ Done
-* `RA-11` Multimodelové rozpoznávanie (viac modelov paralelne) – 🔄 In Progress
-* `RA-12` Výpočet WPM a detekcia páuz – ⏳ Sprint 3
-* `RA-17` Skóre zrozumiteľnosti reči – 📋 Backlog
-* `RA-18` Dávkové spracovanie datasetu 500 detí na superpočítači – 📋 Backlog
-
-**QA – Yevhenii Medushivskyi**
-
-* `RA-22` Minimálne automatizované testy aplikácie (Appium) – ⏳ To Do
-
-**Product Owner – Artsiom Beniash:** komunikácia so zadávateľom, správa backlogu.
+* `RA-5` Príprava textov (T01..T0X) a audit datasetu 
+* `RA-6` Prototyp rozpoznávania reči pre slovenčinu 
+* `RA-11` Multimodelové rozpoznávanie (viac modelov paralelne) 
+* `RA-12` Výpočet WPM a detekcia páuz  
+* `RA-17` Skóre zrozumiteľnosti reči 
+* `RA-18` Dávkové spracovanie datasetu 500 detí na superpočítači
 
 ---
 
