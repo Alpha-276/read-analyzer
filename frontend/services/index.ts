@@ -1,6 +1,8 @@
 export { initializeDatabase } from './database';
 export {
   createClass,
+  renameClass,
+  deleteClass,
   listClasses,
   addStudent,
   updateStudent,

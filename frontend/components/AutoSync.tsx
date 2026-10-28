@@ -5,6 +5,7 @@ import * as Network from 'expo-network';
 import { getServerToken } from '../services/serverAuth';
 import { getSchoolSyncSummary, synchronizeSchool } from '../services/schoolSync';
 import { onSchoolDataChanged } from '../services/syncEvents';
+import { autoBackupIfEnabled } from '../services/driveBackup';
 
 export default function AutoSync() {
   useEffect(() => {
@@ -28,9 +29,20 @@ export default function AutoSync() {
       }
     };
 
+    // Drive and FastAPI synchronization are independent; lack of server token
+    // must not suppress an opted-in Google backup.
+    let driveBusy = false;
+    const tryDriveBackup = async () => {
+      if (!alive || !connected || driveBusy || AppState.currentState !== 'active') return;
+      driveBusy = true;
+      try { await autoBackupIfEnabled(); }
+      catch (error) { console.warn('Drive backup unavailable:', error instanceof Error ? error.message : String(error)); }
+      finally { driveBusy = false; }
+    };
+
     const schedule = (pullRemote: boolean) => {
       if (timer) clearTimeout(timer);
-      timer = setTimeout(() => { void trySync(pullRemote); }, 600);
+      timer = setTimeout(() => { void trySync(pullRemote); void tryDriveBackup(); }, 600);
     };
     const onNetwork = (state: Network.NetworkState) => {
       const next = state.isConnected !== false; // LAN can work even without external internet.
@@ -53,7 +65,7 @@ export default function AutoSync() {
       if (connected) schedule(false);
     });
     // The Wi-Fi may stay connected while a test backend was temporarily stopped.
-    const retry = setInterval(() => { void trySync(false); }, 60000);
+    const retry = setInterval(() => { void trySync(false); void tryDriveBackup(); }, 60000);
     return () => {
       alive = false;
       if (timer) clearTimeout(timer);

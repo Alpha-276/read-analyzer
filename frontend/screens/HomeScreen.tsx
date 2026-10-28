@@ -1,6 +1,10 @@
+import { useCallback, useEffect, useState } from "react";
 import { View, Text, ScrollView } from "react-native";
 import FeatureCard from "../components/FeatureCard";
 import StatCard from "../components/StatCard";
+import SyncControls from "../components/SyncControls";
+import { getHomeStats, type HomeStats } from "../services/homeStats";
+import { onSchoolDataChanged } from "../services/syncEvents";
 
 type HomeScreenProps = {
     setCurrentScreen: (screen: string) => void;
@@ -9,6 +13,21 @@ type HomeScreenProps = {
 export default function HomeScreen({
                                        setCurrentScreen,
                                    }: HomeScreenProps) {
+    const [stats, setStats] = useState<HomeStats>({ classes: 0, students: 0, recordings: 0 });
+
+    const refreshStats = useCallback(async () => {
+        try {
+            setStats(await getHomeStats());
+        } catch (error) {
+            console.error("Failed to load home statistics:", error);
+        }
+    }, []);
+
+    useEffect(() => {
+        void refreshStats();
+        return onSchoolDataChanged(() => { void refreshStats(); });
+    }, [refreshStats]);
+
     return (
         <View
             style={{
@@ -86,10 +105,11 @@ export default function HomeScreen({
                         fontSize: 30,
                         fontWeight: "700",
                         marginTop: 15,
+                        marginBottom: 12,
                         color: "#1e293b",
                     }}
                 >
-                    Vitajte
+                    Vitajte!
                 </Text>
 
                 <Text
@@ -106,24 +126,27 @@ export default function HomeScreen({
                 {/* Feature Cards */}
 
                 <FeatureCard
-                    title="Vytvoriť triedu"
-                    subtitle="Spravovať žiakov a skupiny"
-                    icon="👥"
+                    title="Manažment triedy"
+                    icon={require("../assets/icons/people.png")}
                     onPress={() => setCurrentScreen("class")}
                 />
 
                 <FeatureCard
-                    title="Nahrávky"
-                    subtitle="Nahrávanie čítania žiakov"
-                    icon="🎤"
+                    title="Spracovanie nahrávok"
+                    icon={require("../assets/icons/download.png")}
                     onPress={() => setCurrentScreen("recordings")}
                 />
 
                 <FeatureCard
                     title="Spustiť čítanie"
-                    subtitle="Analýza a hodnotenie výkonu"
-                    icon="📊"
+                    icon={require("../assets/icons/microphone.png")}
                     onPress={() => setCurrentScreen("record")}
+                />
+
+                <FeatureCard
+                    title="Google Drive"
+                    icon={require("../assets/icons/google-drive.png")}
+                    onPress={() => setCurrentScreen("drive")}
                 />
 
                 {/* Statistics */}
@@ -137,21 +160,25 @@ export default function HomeScreen({
                     }}
                 >
                     <StatCard
-                        value="3"
+                        value={String(stats.classes)}
+                        label="Triedy"
+                    />
+
+                    <StatCard
+                        value={String(stats.students)}
                         label="Žiaci"
                     />
 
                     <StatCard
-                        value="7"
+                        value={String(stats.recordings)}
                         label="Nahrávky"
-                    />
-
-                    <StatCard
-                        value="5"
-                        label="Analýzy"
                     />
                 </View>
 
+
+                <View style={{ width: "100%", marginTop: 20 }}>
+                    <SyncControls onSynced={refreshStats} />
+                </View>
 
                 <View
                     style={{

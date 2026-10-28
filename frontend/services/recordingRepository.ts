@@ -1,5 +1,6 @@
 /** Minimal persisted recordings/status layer for RA-13; RA-14 may expand it. */
 import { getDatabase } from './database';
+import { notifySchoolDataChanged } from './syncEvents';
 import type { WavRecording, ProcessingStatus } from './types';
 
 type RecordingRow = {
@@ -50,6 +51,8 @@ export async function persistSavedRecording(recording: WavRecording): Promise<vo
     recording.uri,
     recording.durationSeconds,
   );
+  // RA-26 opt-in cloud backup is scheduled only AFTER SQLite has the confirmed WAV.
+  notifySchoolDataChanged();
 }
 
 export async function updateRecordingProcessing(

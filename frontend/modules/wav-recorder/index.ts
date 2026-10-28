@@ -4,6 +4,7 @@ interface WavRecorderModule {
   start(outputUri: string, sampleRate: number): Promise<void>;
   stop(): Promise<void>;
   exportToDownloads(sourceUri: string, studentFolder: string, stem: string): Promise<string>;
+  getExportedInfo(contentUri: string): Promise<{ fileName: string; studentFolder: string }>;
 }
 
 // Load on use, so unrelated screens still open in Expo Go or on the web.

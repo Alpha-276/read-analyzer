@@ -39,6 +39,24 @@ export async function createClass(name: string): Promise<SchoolClass> {
   return { id: result.lastInsertRowId, name: trimmedName };
 }
 
+/** Rename a class locally; the change is included in RA-14 remote sync. */
+export async function renameClass(id: number, name: string): Promise<SchoolClass> {
+  requireId(id);
+  const trimmedName = requiredText(name, 'Názov triedy');
+  const db = await getDatabase();
+  const schoolClass = await db.getFirstAsync<SchoolClass>(
+    `UPDATE classes SET name=?, sync_dirty=1, sync_op_id=?
+     WHERE id=? AND sync_deleted=0 RETURNING id, name`,
+    trimmedName,
+    Crypto.randomUUID(),
+    id,
+  );
+
+  if (!schoolClass) throw new Error('Trieda neexistuje.');
+  notifySchoolDataChanged();
+  return schoolClass;
+}
+
 export async function listClasses(): Promise<SchoolClass[]> {
   const db = await getDatabase();
 

@@ -5,7 +5,7 @@ import HomeScreen from "./screens/HomeScreen";
 import ClassScreen from "./screens/ClassScreen";
 import RecordScreen from "./screens/RecordScreen";
 import RecordingsScreen from "./screens/RecordingsScreen";
-import AnalysisScreen from "./screens/AnalysisScreen";
+import GoogleDriveScreen from "./screens/GoogleDriveScreen";
 
 import BottomNavigation from "./components/BottomNavigation";
 import AutoSync from "./components/AutoSync";
@@ -65,6 +65,9 @@ export default function App() {
                     />
                 );
 
+            case "drive":
+                return <GoogleDriveScreen />;
+
             case "recordings":
                 return (
                     <RecordingsScreen
@@ -77,9 +80,6 @@ export default function App() {
                         )}
                     />
                 );
-
-            case "analysis":
-                return <AnalysisScreen />;
 
             default:
                 return (

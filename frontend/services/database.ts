@@ -144,6 +144,28 @@ async function openAndInitializeDatabase(): Promise<SQLiteDatabase> {
           PRAGMA user_version = 4;
         `);
       }
+      // RA-26: completely independent Google Drive backup state (not RA-14 sync).
+      if ((version?.user_version ?? 0) < 5) {
+        await db.execAsync(`
+          CREATE TABLE drive_config (
+            id INTEGER PRIMARY KEY CHECK (id=1),
+            account_email TEXT NOT NULL DEFAULT '',
+            folder_id TEXT NOT NULL DEFAULT '',
+            automatic INTEGER NOT NULL DEFAULT 0 CHECK (automatic IN (0,1)),
+            installation_id TEXT NOT NULL
+          );
+          INSERT INTO drive_config(id, installation_id) VALUES (1, '${Crypto.randomUUID()}');
+          CREATE TABLE drive_backup_state (
+            account_email TEXT NOT NULL,
+            folder_id TEXT NOT NULL,
+            source_key TEXT NOT NULL,
+            file_id TEXT NOT NULL,
+            fingerprint TEXT NOT NULL,
+            PRIMARY KEY(account_email, folder_id, source_key)
+          );
+          PRAGMA user_version = 5;
+        `);
+      }
     });
 
     return db;

@@ -1,18 +1,12 @@
-import { TouchableOpacity, View, Text } from "react-native";
+import { TouchableOpacity, View, Text, Image, type ImageSourcePropType } from "react-native";
 
 type FeatureCardProps = {
     title: string;
-    subtitle: string;
-    icon: string;
+    icon: ImageSourcePropType;
     onPress?: () => void;
 };
 
-export default function FeatureCard({
-                                        title,
-                                        subtitle,
-                                        icon,
-                                        onPress,
-                                    }: FeatureCardProps) {
+export default function FeatureCard({ title, icon, onPress }: FeatureCardProps) {
     return (
         <TouchableOpacity
             onPress={onPress}
@@ -22,16 +16,10 @@ export default function FeatureCard({
                 borderRadius: 18,
                 padding: 18,
                 marginBottom: 12,
-
                 shadowColor: "#000",
                 shadowOpacity: 0.08,
                 shadowRadius: 6,
-
-                shadowOffset: {
-                    width: 0,
-                    height: 2,
-                },
-
+                shadowOffset: { width: 0, height: 2 },
                 elevation: 3,
             }}
         >
@@ -60,16 +48,14 @@ export default function FeatureCard({
                             marginRight: 15,
                         }}
                     >
-                        <Text
-                            style={{
-                                fontSize: 24,
-                            }}
-                        >
-                            {icon}
-                        </Text>
+                        <Image
+                            source={icon}
+                            resizeMode="contain"
+                            style={{ width: 30, height: 30, tintColor: "#3b82f6" }}
+                        />
                     </View>
 
-                    <View style={{ flex: 1 }}>
+                    <View style={{ flex: 1, justifyContent: "center" }}>
                         <Text
                             style={{
                                 color: "#1e293b",
@@ -79,23 +65,14 @@ export default function FeatureCard({
                         >
                             {title}
                         </Text>
-
-                        <Text
-                            style={{
-                                color: "#64748b",
-                                marginTop: 3,
-                                fontSize: 13,
-                            }}
-                        >
-                            {subtitle}
-                        </Text>
                     </View>
                 </View>
 
                 <Text
                     style={{
-                        color: "#94a3b8",
-                        fontSize: 28,
+                        color: "#3b82f6",
+                        fontSize: 42,
+                        marginLeft: 8,
                     }}
                 >
                     ›
