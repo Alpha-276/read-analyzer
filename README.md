@@ -24,11 +24,11 @@ Aplikácia pre učiteľov na tabletoch/smartfónoch (Android), ktorá umožňuje
 ## 👥 Tím Alpha (Team Alpha)
 
 * **Product Owner:** Artsiom Beniash ([@n0namedeveloper](https://github.com/n0namedeveloper))
-* **Scrum Master:** yevhenii medushivskyi ([@yvhdpdngr276](https://github.com/yvhdpdngr276))
-* **Android / Frontend Lead:** Sergei Boiko ([@sergiyboyko2006](https://github.com/sergiyboyko2006))
-* **Backend / Core Engineer:** Alina Kuznetsova ([@val966](https://github.com/val966))
-* **ML / Data Engineer:** dvisty ([@dvisty](https://github.com/dvisty))
-* **Konzultant / Mentor:** doc. Ing. Stanislav Ondáš, PhD.
+* **Scrum Master:** Medushivskyi Yevhenii ([@yvhdpdngr276](https://github.com/yvhdpdngr276))
+* **Android / Frontend DEV :** Boyko Sergiy  ([@sergiyboyko2006](https://github.com/sergiyboyko2006))
+* **Backend DEV :** Alina Kuznetsova ([@val966](https://github.com/val966))
+* **ML / Data Engineer:** Chalykh Dmytrii  ([@dvisty](https://github.com/dvisty))
+* **Konzultant / Mentor:** doc. Ing. Stanislav Ondáš, PhD. , Ing. Juraj Kováč
 
 Riadenie šprintov prebieha na [Jira: Read Analyzer Board](https://uvb.atlassian.net/jira/software/projects/RA/boards/2).
 
