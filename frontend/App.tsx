@@ -6,6 +6,7 @@ import ClassScreen from "./screens/ClassScreen";
 import RecordScreen from "./screens/RecordScreen";
 import RecordingsScreen from "./screens/RecordingsScreen";
 import GoogleDriveScreen from "./screens/GoogleDriveScreen";
+import AnalysisScreen from "./screens/AnalysisScreen";
 
 import BottomNavigation from "./components/BottomNavigation";
 import AutoSync from "./components/AutoSync";
@@ -13,11 +14,8 @@ import type { WavRecording } from "./services";
 
 import { initializeDatabase, cleanupAbandonedRecordings, getLatestSavedRecording, resumeRecordingProcessing } from "./services";
 
-
 export default function App() {
-    const [currentScreen, setCurrentScreen] =
-        useState("home");
-
+    const [currentScreen, setCurrentScreen] = useState("home");
     const [lastRecording, setLastRecording] = useState<WavRecording | null>(null);
     const [resumingTaskUri, setResumingTaskUri] = useState<string | null>(null);
 
@@ -51,8 +49,6 @@ export default function App() {
     }, []);
 
     const renderScreen = () => {
-
-
         switch (currentScreen) {
             case "class":
                 return <ClassScreen />;
@@ -80,6 +76,9 @@ export default function App() {
                         )}
                     />
                 );
+
+            case "analysis":
+                return <AnalysisScreen />;
 
             default:
                 return (

@@ -1,5 +1,4 @@
 import { useRef, useState } from "react";
-
 import {
     saveRecording as saveLocalRecording,
     saveAndProcess,
@@ -11,10 +10,9 @@ import {
     Text,
     ScrollView,
     TouchableOpacity,
+    TextInput,
     Alert,
 } from "react-native";
-
-
 
 type RecordingsScreenProps = {
     recording: WavRecording | null;
@@ -26,6 +24,10 @@ export default function RecordingsScreen({ recording, onRecordingChange, resumin
     const saved = recording?.status === "saved";
     const confirmingRef = useRef(false);
     const [action, setAction] = useState<"save" | "process" | null>(null);
+
+    // The transcription comes from the ASR server
+    const transcript = recording?.transcript ?? "";
+    const wordCount = transcript.trim() ? transcript.trim().split(/\s+/).length : 0;
 
     const runAction = async (kind: "save" | "process") => {
         if (!recording || confirmingRef.current) return;
@@ -40,7 +42,7 @@ export default function RecordingsScreen({ recording, onRecordingChange, resumin
                 kind === "save" ? "Uložené" : "Hotovo",
                 kind === "save"
                     ? "Nahrávka je uložená v Download/CitamDobre/deti/."
-                    : "Nahrávka bola odoslaná na server."
+                    : "Spracovanie nahrávky na serveri prebehlo úspešne."
             );
         } catch (error) {
             Alert.alert("Chyba", error instanceof Error ? error.message : String(error));
@@ -106,72 +108,145 @@ export default function RecordingsScreen({ recording, onRecordingChange, resumin
                         backgroundColor: "white",
                         borderWidth: 1.5,
                         borderColor: "#3b82f6",
-
                         borderRadius: 18,
-
                         padding: 18,
-
                         alignItems: "center",
-
                         marginBottom: 12,
                     }}
                 >
                     <Text
                         style={{
                             color: "#3b82f6",
+                            fontSize: 16,
                             fontWeight: "700",
                         }}
                     >
-                        {recording
-                            ? (saved ? "✅ WAV uložený" : action === "save" ? "⏳ Ukladá sa..." : "💾 Uložiť nahrávku")
-                            : "💾 Žiadna WAV nahrávka"}
+                        {saved ? "✅ Nahrávka je uložená lokálne"
+                            : action === "save" ? "⏳ Ukladá sa..."
+                            : "💾 Uložiť nahrávku lokálne"}
                     </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                     onPress={processRecording}
-                    disabled={!recording || isSaving || recording?.processingStatus === "done"}
+                    disabled={!recording || isSaving}
                     style={{
-                        opacity: !recording || isSaving || recording?.processingStatus === "done" ? 0.6 : 1,
+                        opacity: !recording || isSaving ? 0.6 : 1,
                         backgroundColor: "#3b82f6",
-
                         borderRadius: 18,
-
                         padding: 18,
-
                         alignItems: "center",
-
                         marginBottom: 20,
-
-                        shadowColor: "#3b82f6",
-                        shadowOpacity: 0.2,
-                        shadowRadius: 8,
-
-                        elevation: 5,
                     }}
                 >
                     <Text
                         style={{
                             color: "white",
+                            fontSize: 16,
                             fontWeight: "700",
                         }}
                     >
                         {resuming ? "⏳ Dokončuje sa spracovanie..."
                             : action === "process" ? "⏳ Odosiela sa na server..."
-                            : recording?.processingStatus === "done" ? "✅ Nahrávka odoslaná"
-                            : "📤 Odoslať nahrávku na server"}
+                            : recording?.processingStatus === "done" ? "✅ Prepis dokončený"
+                            : saved ? "🔄 Spracovať nahrávku (ASR)" : "⚙️ Uložiť a spracovať nahrávku"}
                     </Text>
                 </TouchableOpacity>
+
+                <View
+                    style={{
+                        backgroundColor: "white",
+                        borderRadius: 22,
+                        padding: 16,
+                        shadowColor: "#000",
+                        shadowOpacity: 0.06,
+                        shadowRadius: 8,
+                        elevation: 3,
+                        marginBottom: 20,
+                    }}
+                >
+                    <View
+                        style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            marginBottom: 16,
+                        }}
+                    >
+                        <Text
+                            style={{
+                                color: "#94a3b8",
+                                fontWeight: "700",
+                                letterSpacing: 1,
+                                fontSize: 12,
+                            }}
+                        >
+                            PREPIS TEXTU
+                        </Text>
+
+                        <Text
+                            style={{
+                                color: "#94a3b8",
+                                fontSize: 12,
+                            }}
+                        >
+                            {recording?.processingStatus === "done" ? "Výsledok ASR" : "Zatiaľ nedostupný"}
+                        </Text>
+                    </View>
+
+                    <View
+                        style={{
+                            backgroundColor: "#eef2ff",
+                            borderRadius: 16,
+                            padding: 16,
+                            minHeight: 180,
+                        }}
+                    >
+                        <TextInput
+                            multiline
+                            value={transcript}
+                            editable={false}
+                            placeholder="Prepis sa zobrazí po spracovaní nahrávky."
+                            textAlignVertical="top"
+                            style={{
+                                minHeight: 140,
+                                color: "#1e293b",
+                                lineHeight: 24,
+                            }}
+                        />
+                    </View>
+
+                    <View
+                        style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            marginTop: 16,
+                        }}
+                    >
+                        <Text
+                            style={{
+                                color: "#64748b",
+                                fontSize: 12,
+                            }}
+                        >
+                            {wordCount} slov
+                        </Text>
+
+                        <Text
+                            style={{
+                                color: "#64748b",
+                                fontSize: 12,
+                            }}
+                        >
+                            Dĺžka nahrávky: {recording?.durationSeconds ?? 0} s
+                        </Text>
+                    </View>
+                </View>
 
                 {saved && (
                     <View
                         style={{
-                            marginTop: 20,
-
                             backgroundColor: recording?.processingStatus === "done" ? "#dcfce7" : "#e2e8f0",
-
                             borderRadius: 16,
-
                             padding: 16,
                         }}
                     >
@@ -182,7 +257,7 @@ export default function RecordingsScreen({ recording, onRecordingChange, resumin
                             }}
                         >
                             {recording?.processingStatus === "done"
-                                ? "Nahrávka bola odoslaná na server."
+                                ? "Nahrávka bola odoslaná a spracovaná na serveri."
                                 : recording?.processingStatus === "processing"
                                     ? "Prebieha spracovanie na serveri..."
                                     : recording?.processingStatus === "pending"
