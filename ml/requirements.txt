@@ -1,5 +1,9 @@
 transformers
-torch
+accelerate
 librosa
 jiwer
 pandas
+numpy
+soundfile
+pyctcdecode
+kenlm

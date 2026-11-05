@@ -4,16 +4,16 @@ import time
 from pathlib import Path
 
 import librosa
-import numpy as np
 import pandas as pd
-import soundfile as sf
+import subprocess
+import numpy as np
 import torch
 from jiwer import cer, wer
 from transformers import pipeline
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MANIFEST = ROOT / "ml" / "samples" / "dev_50.tsv"
+MANIFEST = ROOT / "ml" / "samples" / "manifest.tsv"
 OUTPUT_DIR = ROOT / "ml" / "output"
 
 MODELS = {
@@ -23,15 +23,26 @@ MODELS = {
 }
 
 
-def load_audio(audio_path: Path, target_sampling_rate: int) -> np.ndarray:
-    audio, sampling_rate = sf.read(audio_path, dtype="float32")
-    if audio.ndim > 1:
-        audio = audio.mean(axis=1, dtype=np.float32)
-    if sampling_rate != target_sampling_rate:
-        audio = librosa.resample(
-            audio, orig_sr=sampling_rate, target_sr=target_sampling_rate
-        )
-    return np.asarray(audio, dtype=np.float32)
+def load_audio(audio_path: Path, target_sr: int):
+    command = [
+        "ffmpeg",
+        "-v", "error",
+        "-i", str(audio_path),
+        "-f", "f32le",
+        "-ac", "1",
+        "-ar", str(target_sr),
+        "pipe:1",
+    ]
+
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        check=True,
+    )
+
+    audio = np.frombuffer(result.stdout, dtype=np.float32).copy()
+
+    return audio
 
 
 def normalize_text(text: str) -> str:
@@ -90,7 +101,11 @@ def transcribe_model(
         if is_whisper:
             prediction = recognizer(
                 audio,
-                generate_kwargs={"language": "slovak", "task": "transcribe"},
+                generate_kwargs={
+                    "language": "slovak",
+                    "task": "transcribe",
+                },
+                return_timestamps=True,
             )
         else:
             prediction = recognizer(audio)

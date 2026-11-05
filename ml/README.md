@@ -130,6 +130,7 @@ Install the required Python packages:
 
 ```bash
 pip install --upgrade pip
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130    (CUDA)
 pip install -r ml/requirements.txt
 ```
 
@@ -142,6 +143,7 @@ pip install -r ml/requirements.txt
 Run the benchmark script from the **repository root**:
 
 ```bash
+$env:PYTHONUTF8=1
 python ml/benchmark.py
 ```
 
