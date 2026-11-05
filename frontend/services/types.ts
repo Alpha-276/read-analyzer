@@ -29,7 +29,14 @@ export interface WavRecording {
   textId: string;
   durationSeconds: number;
   status: 'pending' | 'saved';
+  processingStatus?: ProcessingStatus;
+  taskId?: string | null;
+  transcript?: string | null;
+  comparison?: Record<string, unknown> | null;
+  processingError?: string | null;
 }
+
+export type ProcessingStatus = 'unprocessed' | 'pending' | 'processing' | 'done' | 'error';
 
 // Stuctures for record logic =============================================
 

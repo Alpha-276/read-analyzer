@@ -1,6 +1,8 @@
 export { initializeDatabase } from './database';
 export {
   createClass,
+  renameClass,
+  deleteClass,
   listClasses,
   addStudent,
   updateStudent,
@@ -34,3 +36,12 @@ export type {
   WavRecording,
 } from './types';
 
+
+// RA-13: local saving, remote transcription and persisted processing state.
+export { saveRecording, saveAndProcess, resumeRecordingProcessing } from './processingService';
+export { getLatestSavedRecording, getSavedRecording, listSavedRecordings } from './recordingRepository';
+export type { ProcessingStatus } from './types';
+
+// RA-14: offline notes and sync state.
+export { getStudentNote, saveStudentNote } from './studentNotes';
+export { getSchoolSyncSummary } from './schoolSync';

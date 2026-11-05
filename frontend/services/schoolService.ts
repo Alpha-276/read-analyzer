@@ -1,4 +1,6 @@
+import * as Crypto from 'expo-crypto';
 import { getDatabase } from './database';
+import { notifySchoolDataChanged } from './syncEvents';
 import type {
   AddStudentInput,
   SchoolClass,
@@ -29,18 +31,37 @@ export async function createClass(name: string): Promise<SchoolClass> {
   const trimmedName = requiredText(name, 'Názov triedy');
   const db = await getDatabase();
   const result = await db.runAsync(
-    'INSERT INTO classes (name) VALUES (?)',
-    trimmedName,
+    'INSERT INTO classes (name, sync_id, sync_op_id) VALUES (?, ?, ?)',
+    trimmedName, Crypto.randomUUID(), Crypto.randomUUID(),
   );
 
+  notifySchoolDataChanged();
   return { id: result.lastInsertRowId, name: trimmedName };
+}
+
+/** Rename a class locally; the change is included in RA-14 remote sync. */
+export async function renameClass(id: number, name: string): Promise<SchoolClass> {
+  requireId(id);
+  const trimmedName = requiredText(name, 'Názov triedy');
+  const db = await getDatabase();
+  const schoolClass = await db.getFirstAsync<SchoolClass>(
+    `UPDATE classes SET name=?, sync_dirty=1, sync_op_id=?
+     WHERE id=? AND sync_deleted=0 RETURNING id, name`,
+    trimmedName,
+    Crypto.randomUUID(),
+    id,
+  );
+
+  if (!schoolClass) throw new Error('Trieda neexistuje.');
+  notifySchoolDataChanged();
+  return schoolClass;
 }
 
 export async function listClasses(): Promise<SchoolClass[]> {
   const db = await getDatabase();
 
   return db.getAllAsync<SchoolClass>(
-    'SELECT id, name FROM classes ORDER BY name, id',
+    'SELECT id, name FROM classes WHERE sync_deleted=0 ORDER BY name, id',
   );
 }
 
@@ -60,12 +81,14 @@ export async function addStudent(input: AddStudentInput): Promise<Student> {
   }
 
   const result = await db.runAsync(
-    'INSERT INTO students (class_id, first_name, last_name) VALUES (?, ?, ?)',
+    'INSERT INTO students (class_id, first_name, last_name, sync_id, sync_op_id) VALUES (?, ?, ?, ?, ?)',
     classId,
     firstName,
     lastName,
+    Crypto.randomUUID(), Crypto.randomUUID(),
   );
 
+  notifySchoolDataChanged();
   return { id: result.lastInsertRowId, classId, firstName, lastName };
 }
 
@@ -78,10 +101,11 @@ export async function updateStudent(
   const lastName = requiredText(input.lastName, 'Priezvisko');
   const db = await getDatabase();
   const student = await db.getFirstAsync<Student>(
-    `UPDATE students SET first_name = ?, last_name = ?
-     WHERE id = ? RETURNING ${STUDENT_COLUMNS}`,
+    `UPDATE students SET first_name = ?, last_name = ?, sync_dirty=1, sync_op_id=?
+     WHERE id = ? AND sync_deleted=0 RETURNING ${STUDENT_COLUMNS}`,
     firstName,
     lastName,
+    Crypto.randomUUID(),
     id,
   );
 
@@ -89,6 +113,7 @@ export async function updateStudent(
     throw new Error('Žiak neexistuje.');
   }
 
+  notifySchoolDataChanged();
   return student;
 }
 
@@ -98,7 +123,7 @@ export async function listStudents(classId: number): Promise<Student[]> {
 
   return db.getAllAsync<Student>(
     `SELECT ${STUDENT_COLUMNS} FROM students
-     WHERE class_id = ? ORDER BY last_name, first_name, id`,
+     WHERE class_id = ? AND sync_deleted=0 ORDER BY last_name, first_name, id`,
     classId,
   );
 }
@@ -106,9 +131,48 @@ export async function listStudents(classId: number): Promise<Student[]> {
 export async function deleteStudent(id: number): Promise<void> {
   requireId(id);
   const db = await getDatabase();
-  const result = await db.runAsync('DELETE FROM students WHERE id = ?', id);
+  const result = await db.runAsync(
+    'UPDATE students SET sync_deleted=1, sync_dirty=1, sync_op_id=? WHERE id=? AND sync_deleted=0',
+    Crypto.randomUUID(), id,
+  );
 
   if (result.changes === 0) {
     throw new Error('Žiak neexistuje.');
   }
+  // Tombstone the note before the student is removed remotely.
+  const note = await db.getFirstAsync<{ id: number }>(
+    'SELECT id FROM student_notes WHERE student_id=? AND sync_deleted=0', id,
+  );
+  if (note) await db.runAsync(
+    'UPDATE student_notes SET sync_deleted=1,sync_dirty=1,sync_op_id=? WHERE id=?',
+    Crypto.randomUUID(), note.id,
+  );
+  notifySchoolDataChanged();
+}
+
+/** Tombstone a class without destroying historic references or local recordings. */
+export async function deleteClass(id: number): Promise<void> {
+  requireId(id);
+  const db = await getDatabase();
+  await db.withTransactionAsync(async () => {
+    const result = await db.runAsync(
+      'UPDATE classes SET sync_deleted=1, sync_dirty=1, sync_op_id=? WHERE id=? AND sync_deleted=0',
+      Crypto.randomUUID(), id,
+    );
+    if (result.changes === 0) throw new Error('Trieda neexistuje.');
+    const students = await db.getAllAsync<{ id: number }>(
+      'SELECT id FROM students WHERE class_id=? AND sync_deleted=0', id,
+    );
+    for (const student of students) {
+      await db.runAsync('UPDATE students SET sync_deleted=1,sync_dirty=1,sync_op_id=? WHERE id=?',
+        Crypto.randomUUID(), student.id);
+      const note = await db.getFirstAsync<{ id: number }>(
+        'SELECT id FROM student_notes WHERE student_id=? AND sync_deleted=0', student.id);
+      if (note) await db.runAsync(
+        'UPDATE student_notes SET sync_deleted=1,sync_dirty=1,sync_op_id=? WHERE id=?',
+        Crypto.randomUUID(), note.id);
+
+    }
+  });
+  notifySchoolDataChanged();
 }

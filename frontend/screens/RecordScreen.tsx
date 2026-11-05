@@ -27,6 +27,7 @@ export default function RecordScreen({ setCurrentScreen, onRecordingChange }: Re
     const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
     const [selectedText, setSelectedText] = useState("T01");
     const texts = ["T01", "T02", "T03", "T04"];
+    const sampleRates: (16000 | 22050 | 32000 | 44100)[] = [16000, 22050, 32000, 44100,];
     const [showStudents, setShowStudents] = useState(false);
     const [showTexts, setShowTexts] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
@@ -39,6 +40,8 @@ export default function RecordScreen({ setCurrentScreen, onRecordingChange }: Re
     const operationBusyRef = useRef(false);
     const finalizeRef = useRef<() => Promise<void>>(async () => {});
     const unmountedRef = useRef(false);
+    const [sampleRate, setSampleRate] = useState<16000 | 22050 | 32000 | 44100>(16000);
+    const [showSampleRates, setShowSampleRates] = useState(false);
 
     const selectedStudent = students.find(s => s.id === selectedStudentId) ?? null;
 
@@ -145,7 +148,7 @@ export default function RecordScreen({ setCurrentScreen, onRecordingChange }: Re
             secondsRef.current = 0;
             setSeconds(0);
             setSavedUri(null);
-            await startRecording({ student: selectedStudent, textId: selectedText, sampleRate: 16000 });
+            await startRecording({ student: selectedStudent, textId: selectedText, sampleRate,});
             activeSessionRef.current = { student: selectedStudent, textId: selectedText };
             if (!unmountedRef.current) {
                 setIsRecording(true);
@@ -211,7 +214,7 @@ export default function RecordScreen({ setCurrentScreen, onRecordingChange }: Re
                         fontWeight: "700",
                     }}
                 >
-                    ČítamDobre
+                    Nahrávanie čítania
                 </Text>
             </View>
 
@@ -222,17 +225,6 @@ export default function RecordScreen({ setCurrentScreen, onRecordingChange }: Re
                     paddingBottom: 60,
                 }}
             >
-                <Text
-                    style={{
-                        fontSize: 30,
-                        fontWeight: "700",
-                        color: "#0f172a",
-                        marginBottom: 6,
-                    }}
-                >
-                    Nahrávanie čítania
-                </Text>
-
                 <Text
                     style={{
                         color: "#64748b",
@@ -340,8 +332,86 @@ export default function RecordScreen({ setCurrentScreen, onRecordingChange }: Re
                             >
                                 <Text>{text}</Text>
                             </TouchableOpacity>
+
                         ))}
+
+                    <Text
+                        style={{
+                            color: "#94a3b8",
+                            fontSize: 12,
+                            fontWeight: "700",
+                            marginTop: 20,
+                            marginBottom: 8,
+                        }}
+                    >
+                        KVALITA ZVUKU
+                    </Text>
+
+                    <TouchableOpacity
+                        onPress={() => {
+                            if (!isRecording && !isBusy) {
+                                setShowSampleRates(!showSampleRates);
+                            }
+                        }}
+                        style={{
+                            backgroundColor: "#eef2ff",
+                            borderRadius: 14,
+                            padding: 16,
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                        }}
+                    >
+                        <Text style={{ color: "#0f172a" }}>
+                            {sampleRate === 16000 && "16 kHz"}
+                            {sampleRate === 22050 && "22.05 kHz"}
+                            {sampleRate === 32000 && "32 kHz"}
+                            {sampleRate === 44100 && "44.1 kHz"}
+                        </Text>
+
+                        <Text>⌄</Text>
+                    </TouchableOpacity>
+
+                    {showSampleRates &&
+                        sampleRates.map((rate) => (
+                            <TouchableOpacity
+                                key={rate}
+                                onPress={() => {
+                                    setSampleRate(rate);
+                                    setShowSampleRates(false);
+                                }}
+                                style={{
+                                    padding: 12,
+                                    borderBottomWidth: 1,
+                                    borderBottomColor: "#e2e8f0",
+                                    flexDirection: "row",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                }}
+                            >
+                                <Text>
+                                    {rate === 16000 && "16 kHz"}
+                                    {rate === 22050 && "22.05 kHz"}
+                                    {rate === 32000 && "32 kHz"}
+                                    {rate === 44100 && "44.1 kHz"}
+                                </Text>
+
+                                {sampleRate === rate && (
+                                    <Text
+                                        style={{
+                                            color: "#2563eb",
+                                            fontWeight: "700",
+                                        }}
+                                    >
+                                        ✓
+                                    </Text>
+                                )}
+                            </TouchableOpacity>
+                        ))}
+
                 </View>
+
+
 
                 <View
                     style={{

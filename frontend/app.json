@@ -23,7 +23,9 @@
     },
     "plugins": [
       "expo-status-bar",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-secure-store",
+      "@react-native-google-signin/google-signin"
     ]
   }
 }

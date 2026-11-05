@@ -1,4 +1,5 @@
 import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
+import * as Crypto from 'expo-crypto';
 
 const DATABASE_NAME = 'read-analyzer.db';
 let databasePromise: Promise<SQLiteDatabase> | undefined;
@@ -74,7 +75,97 @@ async function openAndInitializeDatabase(): Promise<SQLiteDatabase> {
         await db.execAsync('PRAGMA user_version = 1');
       }
 
-      // RA-14: append the next migration here; preserve existing rows and IDs.
+      // RA-13: recording metadata stays on the phone, without touching RA-7 rows.
+      if ((version?.user_version ?? 0) < 2) {
+        await db.execAsync(`
+          CREATE TABLE IF NOT EXISTS recordings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            student_first_name TEXT NOT NULL,
+            student_last_name TEXT NOT NULL,
+            text_id TEXT NOT NULL,
+            uri TEXT NOT NULL UNIQUE,
+            duration_seconds INTEGER NOT NULL,
+            processing_status TEXT NOT NULL DEFAULT 'unprocessed'
+              CHECK (processing_status IN ('unprocessed', 'pending', 'processing', 'done', 'error')),
+            task_id TEXT,
+            transcript TEXT,
+            comparison_json TEXT,
+            error TEXT,
+            saved_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE INDEX IF NOT EXISTS idx_recordings_student_id ON recordings(student_id);
+          PRAGMA user_version = 2;
+        `);
+      }
+      // Remote sync v3; never replace existing local INTEGER primary keys.
+      if ((version?.user_version ?? 0) < 3) {
+        await db.execAsync(`
+          ALTER TABLE classes ADD COLUMN sync_id TEXT;
+          ALTER TABLE classes ADD COLUMN sync_op_id TEXT;
+          ALTER TABLE classes ADD COLUMN server_version INTEGER NOT NULL DEFAULT 0;
+          ALTER TABLE classes ADD COLUMN sync_dirty INTEGER NOT NULL DEFAULT 1;
+          ALTER TABLE classes ADD COLUMN sync_deleted INTEGER NOT NULL DEFAULT 0;
+          ALTER TABLE students ADD COLUMN sync_id TEXT;
+          ALTER TABLE students ADD COLUMN sync_op_id TEXT;
+          ALTER TABLE students ADD COLUMN server_version INTEGER NOT NULL DEFAULT 0;
+          ALTER TABLE students ADD COLUMN sync_dirty INTEGER NOT NULL DEFAULT 1;
+          ALTER TABLE students ADD COLUMN sync_deleted INTEGER NOT NULL DEFAULT 0;
+          CREATE TABLE school_sync_state (id INTEGER PRIMARY KEY CHECK(id=1), cursor INTEGER NOT NULL DEFAULT 0);
+          INSERT INTO school_sync_state(id,cursor) VALUES(1,0);
+        `);
+        for (const table of ['classes', 'students'] as const) {
+          const rows = await db.getAllAsync<{ id: number }>(`SELECT id FROM ${table} WHERE sync_id IS NULL`);
+          for (const row of rows) {
+            await db.runAsync(`UPDATE ${table} SET sync_id=?, sync_op_id=? WHERE id=?`,
+              Crypto.randomUUID(), Crypto.randomUUID(), row.id);
+          }
+        }
+        await db.execAsync(`
+          CREATE UNIQUE INDEX idx_classes_sync_id ON classes(sync_id);
+          CREATE UNIQUE INDEX idx_students_sync_id ON students(sync_id);
+          PRAGMA user_version = 3;
+        `);
+      }
+      // RA-14: offline teacher notes and durable last successful sync time.
+      if ((version?.user_version ?? 0) < 4) {
+        await db.execAsync(`
+          CREATE TABLE IF NOT EXISTS student_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL UNIQUE REFERENCES students(id) ON DELETE RESTRICT,
+            body TEXT NOT NULL DEFAULT '',
+            sync_id TEXT NOT NULL UNIQUE,
+            sync_op_id TEXT,
+            server_version INTEGER NOT NULL DEFAULT 0,
+            sync_dirty INTEGER NOT NULL DEFAULT 1,
+            sync_deleted INTEGER NOT NULL DEFAULT 0
+          );
+          ALTER TABLE school_sync_state ADD COLUMN last_success_at TEXT;
+          PRAGMA user_version = 4;
+        `);
+      }
+      // RA-26: completely independent Google Drive backup state (not RA-14 sync).
+      if ((version?.user_version ?? 0) < 5) {
+        await db.execAsync(`
+          CREATE TABLE drive_config (
+            id INTEGER PRIMARY KEY CHECK (id=1),
+            account_email TEXT NOT NULL DEFAULT '',
+            folder_id TEXT NOT NULL DEFAULT '',
+            automatic INTEGER NOT NULL DEFAULT 0 CHECK (automatic IN (0,1)),
+            installation_id TEXT NOT NULL
+          );
+          INSERT INTO drive_config(id, installation_id) VALUES (1, '${Crypto.randomUUID()}');
+          CREATE TABLE drive_backup_state (
+            account_email TEXT NOT NULL,
+            folder_id TEXT NOT NULL,
+            source_key TEXT NOT NULL,
+            file_id TEXT NOT NULL,
+            fingerprint TEXT NOT NULL,
+            PRIMARY KEY(account_email, folder_id, source_key)
+          );
+          PRAGMA user_version = 5;
+        `);
+      }
     });
 
     return db;

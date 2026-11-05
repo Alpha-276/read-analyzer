@@ -1,0 +1,13 @@
+.git
+.venv
+**/__pycache__
+**/*.pyc
+frontend
+node_modules
+modules
+ml/samples
+results
+data
+*.wav
+*.mp3
+*.zip

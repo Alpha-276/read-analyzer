@@ -108,24 +108,13 @@ export default function BottomNavigation({
             </TouchableOpacity>
 
             <TouchableOpacity
-                style={{
-                    flex: 1,
-                    justifyContent: "center",
-                    alignItems: "center",
-                }}
-                onPress={() => setCurrentScreen("analysis")}
+                style={{flex: 1, justifyContent: "center", alignItems: "center"}}
+                onPress={() => setCurrentScreen("drive")}
             >
-                <Text style={{ fontSize: 20 }}>📊</Text>
-                <Text
-                    style={{
-                        fontSize: 10,
-                        color: "#64748b",
-                        marginTop: 2,
-                    }}
-                >
-                    Analýza
-                </Text>
+                <Text style={{fontSize: 20}}>☁️</Text>
+                <Text style={{fontSize: 10, color: "#64748b", marginTop: 2}}>Drive</Text>
             </TouchableOpacity>
+
         </View>
     );
 }

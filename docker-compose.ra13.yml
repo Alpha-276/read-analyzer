@@ -1,0 +1,15 @@
+# Local-development service. Keep it on a trusted network; there is no authentication yet.
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      READ_ANALYZER_ASR_MODEL: "${READ_ANALYZER_ASR_MODEL:-infinitejoy/wav2vec2-large-xls-r-300m-slovak}"
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+
+volumes:
+  huggingface_cache:

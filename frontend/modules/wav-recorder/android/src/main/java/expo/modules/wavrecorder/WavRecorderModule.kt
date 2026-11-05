@@ -119,6 +119,29 @@ class WavRecorderModule : Module() {
       destination.toString() // content:// URI, not a private file:// URI.
     }
 
+    // Return the exact name and student folder used in Android Downloads.
+    // SQLite stores a content:// URI, which does not contain the visible filename.
+    AsyncFunction("getExportedInfo") { wavUri: String ->
+      val context = requireNotNull(appContext.reactContext) { "Android context is unavailable." }
+      val uri = Uri.parse(wavUri)
+      require(uri.scheme == "content") { "Expected a saved WAV content URI." }
+      val projection = arrayOf(MediaStore.MediaColumns.DISPLAY_NAME, MediaStore.MediaColumns.RELATIVE_PATH)
+      val prefix = "${Environment.DIRECTORY_DOWNLOADS}/CitamDobre/deti/"
+      val cursor = checkNotNull(context.contentResolver.query(uri, projection, null, null, null)) {
+        "Cannot read saved WAV metadata."
+      }
+      cursor.use {
+        check(it.moveToFirst()) { "Saved WAV was not found in Android Downloads." }
+        val name = it.getString(it.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME))
+        val path = it.getString(it.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH))
+        require(name.endsWith(".wav", ignoreCase = true)) { "Saved recording is not a WAV." }
+        require(path.startsWith(prefix)) { "Recording is outside the application's Downloads folder." }
+        val folder = path.removeSuffix("/").substringAfterLast('/')
+        require(Regex("[A-Za-z0-9_-]+").matches(folder)) { "Invalid saved student folder." }
+        mapOf("fileName" to name, "studentFolder" to folder)
+      }
+    }
+
     OnActivityEntersForeground { synchronized(lock) { foreground = true } }
 
     OnActivityEntersBackground {
